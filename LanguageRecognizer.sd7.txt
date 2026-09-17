@@ -2,20 +2,17 @@ $ include "seed7_05.s7i";
 
 const type: StringArray is array string;
 
-var StringArray: tokens is 0 times "";
+var StringArray: tokenList is 0 times "";
 var integer: currentToken is 1;
 var string: errorMessage is "";
 
-var StringArray: instructionList is 0 times "";
 var StringArray: shapeList is 0 times "";
 var StringArray: coordOneList is 0 times "";
 var StringArray: coordTwoList is 0 times "";
 var StringArray: coordThreeList is 0 times "";
 
 var integer: instructionCount is 0;
-
-var StringArray: derivationSteps is 0 times "";
-var integer: derivationCount is 0;
+var boolean: running is TRUE;
 
 
 # ============================================================
@@ -25,24 +22,26 @@ var integer: derivationCount is 0;
 const proc: displayGrammar is func
 begin
   writeln;
-  writeln("==============================================");
-  writeln("             LANGUAGE GRAMMAR");
-  writeln("==============================================");
+  writeln("==================================================");
+  writeln("              LANGUAGE RECOGNIZER");
+  writeln("==================================================");
   writeln;
-  writeln("<program>     -> begin <instructions> end");
+  writeln("BNF GRAMMAR");
+  writeln;
+  writeln("<program>      -> begin <instructions> end");
   writeln("<instructions> -> <instruction>");
-  writeln("               | <instruction> . <instructions>");
+  writeln("                | <instruction> . <instructions>");
   writeln("<instruction>  -> SQR <coord>-<coord>");
-  writeln("               | TRI <coord>-<coord>-<coord>");
+  writeln("                | TRI <coord>-<coord>-<coord>");
   writeln("<coord>        -> <x><y>");
   writeln("<x>            -> A | B | C | D | E | F | G");
   writeln("<y>            -> 1 | 2 | 3 | 4 | 5 | 6");
   writeln;
   writeln("Example:");
-  writeln("begin SQR A1-C4. TRI A1-C6-G3 end");
+  writeln("begin SQR A1-C4. TRI A1-C4-G3 end");
   writeln;
-  writeln("Type EXIT to terminate the program.");
-  writeln("==============================================");
+  writeln("Type EXIT to quit.");
+  writeln("==================================================");
   writeln;
 end func;
 
@@ -52,166 +51,191 @@ end func;
 # ============================================================
 
 const proc: tokenize (in string: inputString) is func
-  local
-    var string: currentText is "";
-    var char: currentChar is ' ';
-    var integer: i is 0;
-  begin
 
-    tokens := 0 times "";
-    currentToken := 1;
-    currentText := "";
+local
+  var string: currentText is "";
+  var char: currentChar is ' ';
+  var integer: i is 0;
 
-    if length(inputString) > 0 then
+begin
 
-      for i range 1 to length(inputString) do
+  tokenList := 0 times "";
+  currentToken := 1;
+  currentText := "";
 
-        currentChar := inputString[i];
+  if length(inputString) > 0 then
 
-        if currentChar = ' ' then
+    for i range 1 to length(inputString) do
 
-          if currentText <> "" then
-            tokens &:= currentText;
-            currentText := "";
-          end if;
+      currentChar := inputString[i];
 
-        elsif currentChar = '.' then
+      if currentChar = ' ' then
 
-          if currentText <> "" then
-            tokens &:= currentText;
-            currentText := "";
-          end if;
-
-          tokens &:= ".";
-
-        elsif currentChar = '-' then
-
-          if currentText <> "" then
-            tokens &:= currentText;
-            currentText := "";
-          end if;
-
-          tokens &:= "-";
-
-        else
-
-          currentText &:= currentChar;
-
+        if currentText <> "" then
+          tokenList &:= currentText;
+          currentText := "";
         end if;
 
-      end for;
+      elsif currentChar = '.' then
 
-    end if;
+        if currentText <> "" then
+          tokenList &:= currentText;
+          currentText := "";
+        end if;
 
-    if currentText <> "" then
-      tokens &:= currentText;
-    end if;
+        tokenList &:= ".";
 
-  end func;
+      elsif currentChar = '-' then
 
+        if currentText <> "" then
+          tokenList &:= currentText;
+          currentText := "";
+        end if;
 
-# ============================================================
-# TOKEN FUNCTIONS
-# ============================================================
-
-const func string: getToken is func
-  result
-    var string: tokenValue is "";
-  begin
-
-    if currentToken <= length(tokens) then
-      tokenValue := tokens[currentToken];
-    else
-      tokenValue := "";
-    end if;
-
-  end func;
-
-
-const proc: nextToken is func
-  begin
-
-    if currentToken <= length(tokens) then
-      currentToken +:= 1;
-    end if;
-
-  end func;
-
-
-# ============================================================
-# COORDINATE VALIDATION
-# ============================================================
-
-const func boolean: validX (in char: xValue) is func
-  result
-    var boolean: isValid is FALSE;
-  begin
-
-    if xValue = 'A' or
-       xValue = 'B' or
-       xValue = 'C' or
-       xValue = 'D' or
-       xValue = 'E' or
-       xValue = 'F' or
-       xValue = 'G' then
-
-      isValid := TRUE;
-
-    end if;
-
-  end func;
-
-
-const func boolean: validY (in char: yValue) is func
-  result
-    var boolean: isValid is FALSE;
-  begin
-
-    if yValue = '1' or
-       yValue = '2' or
-       yValue = '3' or
-       yValue = '4' or
-       yValue = '5' or
-       yValue = '6' then
-
-      isValid := TRUE;
-
-    end if;
-
-  end func;
-
-
-const func boolean: parseCoord (in string: coordValue) is func
-  result
-    var boolean: coordIsValid is FALSE;
-  begin
-
-    if length(coordValue) <> 2 then
-
-      errorMessage :=
-        "Error: Coordinate must contain exactly one letter and one number.";
-
-    else
-
-      if validX(coordValue[1]) = FALSE then
-
-        errorMessage :=
-          "Error: Invalid coordinate letter. Use A through G.";
-
-      elsif validY(coordValue[2]) = FALSE then
-
-        errorMessage :=
-          "Error: Invalid coordinate number. Use 1 through 6.";
+        tokenList &:= "-";
 
       else
 
-        coordIsValid := TRUE;
+        currentText &:= currentChar;
 
       end if;
 
-    end if;
+    end for;
 
-  end func;
+  end if;
+
+  if currentText <> "" then
+    tokenList &:= currentText;
+  end if;
+
+end func;
+
+
+# ============================================================
+# GET CURRENT TOKEN
+# ============================================================
+
+const func string: getToken is func
+
+result
+  var string: tokenValue is "";
+
+begin
+
+  if currentToken <= length(tokenList) then
+    tokenValue := tokenList[currentToken];
+  end if;
+
+end func;
+
+
+# ============================================================
+# MOVE TO NEXT TOKEN
+# ============================================================
+
+const proc: nextToken is func
+begin
+
+  if currentToken < length(tokenList) then
+    currentToken +:= 1;
+  else
+    currentToken := length(tokenList) + 1;
+  end if;
+
+end func;
+
+
+# ============================================================
+# VALIDATE X
+# ============================================================
+
+const func boolean: validX (in char: value) is func
+
+result
+  var boolean: valid is FALSE;
+
+begin
+
+  if value = 'A' then
+    valid := TRUE;
+  elsif value = 'B' then
+    valid := TRUE;
+  elsif value = 'C' then
+    valid := TRUE;
+  elsif value = 'D' then
+    valid := TRUE;
+  elsif value = 'E' then
+    valid := TRUE;
+  elsif value = 'F' then
+    valid := TRUE;
+  elsif value = 'G' then
+    valid := TRUE;
+  end if;
+
+end func;
+
+
+# ============================================================
+# VALIDATE Y
+# ============================================================
+
+const func boolean: validY (in char: value) is func
+
+result
+  var boolean: valid is FALSE;
+
+begin
+
+  if value = '1' then
+    valid := TRUE;
+  elsif value = '2' then
+    valid := TRUE;
+  elsif value = '3' then
+    valid := TRUE;
+  elsif value = '4' then
+    valid := TRUE;
+  elsif value = '5' then
+    valid := TRUE;
+  elsif value = '6' then
+    valid := TRUE;
+  end if;
+
+end func;
+
+
+# ============================================================
+# VALIDATE COORDINATE
+# ============================================================
+
+const func boolean: validCoord (in string: coordinate) is func
+
+result
+  var boolean: valid is FALSE;
+
+begin
+
+  if length(coordinate) <> 2 then
+
+    errorMessage :=
+      "Error: Coordinate must contain one letter and one number.";
+
+  elsif validX(coordinate[1]) = FALSE then
+
+    errorMessage :=
+      "Error: Coordinate letter must be A through G.";
+
+  elsif validY(coordinate[2]) = FALSE then
+
+    errorMessage :=
+      "Error: Coordinate number must be 1 through 6.";
+
+  else
+
+    valid := TRUE;
+
+  end if;
+
+end func;
 
 
 # ============================================================
@@ -219,58 +243,53 @@ const func boolean: parseCoord (in string: coordValue) is func
 # ============================================================
 
 const func boolean: parseSqr is func
-  result
-    var boolean: instructionIsValid is FALSE;
-  local
-    var string: firstCoord is "";
-    var string: secondCoord is "";
-  begin
+
+result
+  var boolean: valid is FALSE;
+
+local
+  var string: firstCoord is "";
+  var string: secondCoord is "";
+
+begin
+
+  # Current token is SQR.
+
+  nextToken;
+  firstCoord := getToken;
+
+  if validCoord(firstCoord) = TRUE then
 
     nextToken;
 
-    firstCoord := getToken;
-
-    if parseCoord(firstCoord) = FALSE then
-
-      instructionIsValid := FALSE;
-
-    else
+    if getToken = "-" then
 
       nextToken;
+      secondCoord := getToken;
 
-      if getToken <> "-" then
+      if validCoord(secondCoord) = TRUE then
 
-        errorMessage :=
-          "Error: SQR instruction requires '-' between coordinates.";
+        shapeList &:= "SQR";
+        coordOneList &:= firstCoord;
+        coordTwoList &:= secondCoord;
+        coordThreeList &:= "";
 
-      else
+        instructionCount +:= 1;
 
-        nextToken;
-
-        secondCoord := getToken;
-
-        if parseCoord(secondCoord) = FALSE then
-
-          instructionIsValid := FALSE;
-
-        else
-
-          shapeList &:= "SQR";
-          coordOneList &:= firstCoord;
-          coordTwoList &:= secondCoord;
-          coordThreeList &:= "";
-
-          instructionCount +:= 1;
-
-          instructionIsValid := TRUE;
-
-        end if;
+        valid := TRUE;
 
       end if;
 
+    else
+
+      errorMessage :=
+        "Error: SQR requires '-' between coordinates.";
+
     end if;
 
-  end func;
+  end if;
+
+end func;
 
 
 # ============================================================
@@ -278,111 +297,106 @@ const func boolean: parseSqr is func
 # ============================================================
 
 const func boolean: parseTri is func
-  result
-    var boolean: instructionIsValid is FALSE;
-  local
-    var string: firstCoord is "";
-    var string: secondCoord is "";
-    var string: thirdCoord is "";
-  begin
+
+result
+  var boolean: valid is FALSE;
+
+local
+  var string: firstCoord is "";
+  var string: secondCoord is "";
+  var string: thirdCoord is "";
+
+begin
+
+  # Current token is TRI.
+
+  nextToken;
+  firstCoord := getToken;
+
+  if validCoord(firstCoord) = TRUE then
 
     nextToken;
 
-    firstCoord := getToken;
-
-    if parseCoord(firstCoord) = FALSE then
-
-      instructionIsValid := FALSE;
-
-    else
+    if getToken = "-" then
 
       nextToken;
+      secondCoord := getToken;
 
-      if getToken <> "-" then
-
-        errorMessage :=
-          "Error: TRI instruction requires '-' between coordinates.";
-
-      else
+      if validCoord(secondCoord) = TRUE then
 
         nextToken;
 
-        secondCoord := getToken;
+        if getToken = "-" then
 
-        if parseCoord(secondCoord) = FALSE then
+          nextToken;
+          thirdCoord := getToken;
 
-          instructionIsValid := FALSE;
+          if validCoord(thirdCoord) = TRUE then
+
+            shapeList &:= "TRI";
+            coordOneList &:= firstCoord;
+            coordTwoList &:= secondCoord;
+            coordThreeList &:= thirdCoord;
+
+            instructionCount +:= 1;
+
+            valid := TRUE;
+
+          end if;
 
         else
 
-          nextToken;
-
-          if getToken <> "-" then
-
-            errorMessage :=
-              "Error: TRI instruction requires three coordinates.";
-
-          else
-
-            nextToken;
-
-            thirdCoord := getToken;
-
-            if parseCoord(thirdCoord) = FALSE then
-
-              instructionIsValid := FALSE;
-
-            else
-
-              shapeList &:= "TRI";
-              coordOneList &:= firstCoord;
-              coordTwoList &:= secondCoord;
-              coordThreeList &:= thirdCoord;
-
-              instructionCount +:= 1;
-
-              instructionIsValid := TRUE;
-
-            end if;
-
-          end if;
+          errorMessage :=
+            "Error: TRI requires three coordinates.";
 
         end if;
 
       end if;
 
-    end if;
-
-  end func;
-
-
-# ============================================================
-# PARSE ONE INSTRUCTION
-# ============================================================
-
-const func boolean: parseInstruction is func
-  result
-    var boolean: success is FALSE;
-  begin
-
-    if getToken = "SQR" then
-
-      success := parseSqr;
-
-    elsif getToken = "TRI" then
-
-      success := parseTri;
-
     else
 
       errorMessage :=
-        "Error: Invalid instruction. Expected SQR or TRI.";
-
-      success := FALSE;
+        "Error: TRI requires '-' between coordinates.";
 
     end if;
 
-  end func;
+  end if;
+
+end func;
+
+
+# ============================================================
+# PARSE INSTRUCTION
+# ============================================================
+
+const func boolean: parseInstruction is func
+
+result
+  var boolean: valid is FALSE;
+
+local
+  var string: instruction is "";
+
+begin
+
+  instruction := getToken;
+
+  if instruction = "SQR" then
+
+    valid := parseSqr;
+
+  elsif instruction = "TRI" then
+
+    valid := parseTri;
+
+  else
+
+    errorMessage :=
+      "Error: Expected SQR or TRI.";
+
+  end if;
+
+end func;
 
 
 # ============================================================
@@ -390,42 +404,43 @@ const func boolean: parseInstruction is func
 # ============================================================
 
 const func boolean: parseInstructions is func
-  result
-    var boolean: success is FALSE;
-  local
-    var string: tokenValue is "";
-  begin
 
-    if parseInstruction = FALSE then
+result
+  var boolean: valid is FALSE;
 
-      success := FALSE;
+local
+  var string: tokenValue is "";
 
-    else
+begin
 
-      success := TRUE;
+  if parseInstruction = TRUE then
 
-      tokenValue := getToken;
+    valid := TRUE;
 
-      while tokenValue = "." do
+    nextToken;
+    tokenValue := getToken;
+
+    while tokenValue = "." do
+
+      nextToken;
+
+      if parseInstruction = TRUE then
 
         nextToken;
+        tokenValue := getToken;
 
-        if parseInstruction = FALSE then
+      else
 
-          success := FALSE;
-          tokenValue := "";
+        valid := FALSE;
+        tokenValue := "";
 
-        else
+      end if;
 
-          tokenValue := getToken;
+    end while;
 
-        end if;
+  end if;
 
-      end while;
-
-    end if;
-
-  end func;
+end func;
 
 
 # ============================================================
@@ -433,495 +448,295 @@ const func boolean: parseInstructions is func
 # ============================================================
 
 const func boolean: parseProgram (in string: inputString) is func
-  result
-    var boolean: success is FALSE;
-  local
-    var string: tokenValue is "";
-  begin
 
-    errorMessage := "";
+result
+  var boolean: valid is FALSE;
 
-    instructionList := 0 times "";
-    shapeList := 0 times "";
-    coordOneList := 0 times "";
-    coordTwoList := 0 times "";
-    coordThreeList := 0 times "";
+local
+  var string: tokenValue is "";
 
-    instructionCount := 0;
+begin
 
-    tokenize(inputString);
+  errorMessage := "";
 
-    if length(tokens) = 0 then
+  shapeList := 0 times "";
+  coordOneList := 0 times "";
+  coordTwoList := 0 times "";
+  coordThreeList := 0 times "";
 
-      errorMessage := "Error: No input was entered.";
+  instructionCount := 0;
+
+  tokenize(inputString);
+
+  if length(tokenList) = 0 then
+
+    errorMessage :=
+      "Error: No input was entered.";
+
+  else
+
+    tokenValue := getToken;
+
+    # Check BEGIN.
+
+    if tokenValue <> "begin" then
+
+      errorMessage :=
+        "Error: Program must begin with 'begin'.";
 
     else
 
-      tokenValue := getToken;
+      nextToken;
 
-      if tokenValue <> "begin" then
+      # Check instructions.
 
-        errorMessage :=
-          "Error: Program must begin with 'begin'.";
+      if parseInstructions = TRUE then
 
-      else
+        tokenValue := getToken;
 
-        nextToken;
+        # Check END.
 
-        if parseInstructions = FALSE then
+        if tokenValue = "end" then
 
-          success := FALSE;
+          nextToken;
 
-        else
+          # Nothing may follow END.
 
-          tokenValue := getToken;
+          if currentToken > length(tokenList) then
 
-          if tokenValue <> "end" then
-
-            errorMessage :=
-              "Error: Program must end with 'end'.";
+            valid := TRUE;
 
           else
 
-            nextToken;
-
-            if currentToken <= length(tokens) then
-
-              errorMessage :=
-                "Error: Unexpected text after 'end'.";
-
-            else
-
-              success := TRUE;
-
-            end if;
+            errorMessage :=
+              "Error: Unexpected text after 'end'.";
 
           end if;
-
-        end if;
-
-      end if;
-
-    end if;
-
-  end func;
-
-
-# ============================================================
-# MAKE AN INSTRUCTION STRING
-# ============================================================
-
-const func string: makeInstruction (in integer: position) is func
-  result
-    var string: instructionText is "";
-  begin
-
-    if shapeList[position] = "SQR" then
-
-      instructionText :=
-        "SQR " &
-        coordOneList[position] &
-        "-" &
-        coordTwoList[position];
-
-    else
-
-      instructionText :=
-        "TRI " &
-        coordOneList[position] &
-        "-" &
-        coordTwoList[position] &
-        "-" &
-        coordThreeList[position];
-
-    end if;
-
-  end func;
-
-
-# ============================================================
-# MAKE FINAL SENTENCE
-# ============================================================
-
-const func string: makeActualSentence is func
-  result
-    var string: sentenceText is "";
-  local
-    var integer: i is 0;
-  begin
-
-    sentenceText := "begin ";
-
-    for i range 1 to instructionCount do
-
-      sentenceText &:= makeInstruction(i);
-
-      if i < instructionCount then
-        sentenceText &:= ". ";
-      end if;
-
-    end for;
-
-    sentenceText &:= " end";
-
-  end func;
-
-
-# ============================================================
-# ADD DERIVATION STEP
-# ============================================================
-
-const proc: addDerivation (in string: derivationText) is func
-  begin
-
-    derivationSteps &:= derivationText;
-    derivationCount +:= 1;
-
-  end func;
-
-
-# ============================================================
-# CREATE RIGHTMOST DERIVATION
-# ============================================================
-
-const proc: createRightmostDerivation is func
-  local
-    var string: derivationText is "";
-    var integer: i is 0;
-    var integer: j is 0;
-  begin
-
-    derivationSteps := 0 times "";
-    derivationCount := 0;
-
-    addDerivation("begin <instructions> end");
-
-    if instructionCount = 1 then
-
-      addDerivation("begin <instruction> end");
-
-    else
-
-      derivationText :=
-        "begin <instruction> . <instructions> end";
-
-      addDerivation(derivationText);
-
-      if instructionCount > 2 then
-
-        for i range 2 to instructionCount - 1 do
-
-          derivationText := "begin ";
-
-          for j range 1 to i - 1 do
-            derivationText &:= "<instruction> . ";
-          end for;
-
-          derivationText &:= "<instruction> . <instructions> end";
-
-          addDerivation(derivationText);
-
-        end for;
-
-      end if;
-
-      derivationText := "begin ";
-
-      if instructionCount > 1 then
-
-        for j range 1 to instructionCount - 1 do
-          derivationText &:= "<instruction> . ";
-        end for;
-
-      end if;
-
-      derivationText &:= "<instruction> end";
-
-      addDerivation(derivationText);
-
-    end if;
-
-
-    if instructionCount > 0 then
-
-      i := instructionCount;
-
-      derivationText := "begin ";
-
-      if i > 1 then
-
-        for j range 1 to i - 1 do
-          derivationText &:= "<instruction> . ";
-        end for;
-
-      end if;
-
-      if shapeList[i] = "SQR" then
-
-        derivationText &:= "SQR <coord>-<coord>";
-
-      else
-
-        derivationText &:= "TRI <coord>-<coord>-<coord>";
-
-      end if;
-
-      derivationText &:= " end";
-
-      addDerivation(derivationText);
-
-    end if;
-
-
-    if instructionCount > 0 then
-
-      for i range 1 to instructionCount do
-
-        derivationText := "begin ";
-
-        if i > 1 then
-
-          for j range 1 to i - 1 do
-            derivationText &:= makeInstruction(j);
-            derivationText &:= " . ";
-          end for;
-
-        end if;
-
-        if shapeList[i] = "SQR" then
-
-          derivationText &:= "SQR ";
-          derivationText &:= coordOneList[i];
-          derivationText &:= "-<coord>";
 
         else
 
-          derivationText &:= "TRI ";
-          derivationText &:= coordOneList[i];
-          derivationText &:= "-<coord>-<coord>";
+          errorMessage :=
+            "Error: Program must end with 'end'.";
 
         end if;
 
-        if i < instructionCount then
-
-          derivationText &:= " . ";
-
-          for j range i + 1 to instructionCount do
-
-            derivationText &:= makeInstruction(j);
-
-            if j < instructionCount then
-              derivationText &:= " . ";
-            end if;
-
-          end for;
-
-        end if;
-
-        derivationText &:= " end";
-
-        addDerivation(derivationText);
-
-
-        derivationText := "begin ";
-
-        if i > 1 then
-
-          for j range 1 to i - 1 do
-            derivationText &:= makeInstruction(j);
-            derivationText &:= " . ";
-          end for;
-
-        end if;
-
-        if shapeList[i] = "SQR" then
-
-          derivationText &:= "SQR ";
-          derivationText &:= coordOneList[i];
-          derivationText &:= "-";
-          derivationText &:= coordTwoList[i];
-
-        else
-
-          derivationText &:= "TRI ";
-          derivationText &:= coordOneList[i];
-          derivationText &:= "-";
-          derivationText &:= coordTwoList[i];
-          derivationText &:= "-<coord>";
-
-        end if;
-
-        if i < instructionCount then
-
-          derivationText &:= " . ";
-
-          for j range i + 1 to instructionCount do
-
-            derivationText &:= makeInstruction(j);
-
-            if j < instructionCount then
-              derivationText &:= " . ";
-            end if;
-
-          end for;
-
-        end if;
-
-        derivationText &:= " end";
-
-        addDerivation(derivationText);
-
-
-        if shapeList[i] = "TRI" then
-
-          derivationText := "begin ";
-
-          if i > 1 then
-
-            for j range 1 to i - 1 do
-              derivationText &:= makeInstruction(j);
-              derivationText &:= " . ";
-            end for;
-
-          end if;
-
-          derivationText &:= "TRI ";
-          derivationText &:= coordOneList[i];
-          derivationText &:= "-";
-          derivationText &:= coordTwoList[i];
-          derivationText &:= "-";
-          derivationText &:= coordThreeList[i];
-
-          if i < instructionCount then
-
-            derivationText &:= " . ";
-
-            for j range i + 1 to instructionCount do
-
-              derivationText &:= makeInstruction(j);
-
-              if j < instructionCount then
-                derivationText &:= " . ";
-              end if;
-
-            end for;
-
-          end if;
-
-          derivationText &:= " end";
-
-          addDerivation(derivationText);
-
-        end if;
-
-      end for;
+      end if;
 
     end if;
 
-    addDerivation(makeActualSentence);
+  end if;
 
-  end func;
+end func;
 
 
 # ============================================================
-# DISPLAY DERIVATION
+# CREATE INSTRUCTION TEXT
+# ============================================================
+
+const func string: instructionText (in integer: position) is func
+
+result
+  var string: text is "";
+
+begin
+
+  if shapeList[position] = "SQR" then
+
+    text :=
+      "SQR " &
+      coordOneList[position] &
+      "-" &
+      coordTwoList[position];
+
+  else
+
+    text :=
+      "TRI " &
+      coordOneList[position] &
+      "-" &
+      coordTwoList[position] &
+      "-" &
+      coordThreeList[position];
+
+  end if;
+
+end func;
+
+
+# ============================================================
+# DISPLAY RECOGNIZED INSTRUCTIONS
+# ============================================================
+
+const proc: displayInstructions is func
+
+local
+  var integer: i is 0;
+
+begin
+
+  writeln;
+  writeln("Recognized instructions:");
+
+  for i range 1 to instructionCount do
+
+    write("  ");
+    write(i);
+    write(". ");
+    writeln(instructionText(i));
+
+  end for;
+
+  writeln;
+
+end func;
+
+
+# ============================================================
+# DISPLAY RIGHTMOST DERIVATION
 # ============================================================
 
 const proc: displayDerivation is func
-  local
-    var integer: i is 0;
-  begin
 
-    writeln;
-    writeln("==============================================");
-    writeln("          RIGHTMOST DERIVATION");
-    writeln("==============================================");
+local
+  var integer: i is 0;
 
-    for i range 1 to derivationCount do
-      writeln(str(i) & ". " & derivationSteps[i]);
-    end for;
+begin
 
-    writeln;
-    writeln("Final generated sentence:");
-    writeln(makeActualSentence);
+  writeln;
+  writeln("==================================================");
+  writeln("              RIGHTMOST DERIVATION");
+  writeln("==================================================");
 
-  end func;
+  writeln("1. begin <instructions> end");
+
+  if instructionCount = 1 then
+
+    writeln("2. begin <instruction> end");
+
+  else
+
+    writeln("2. begin <instruction> . <instructions> end");
+
+  end if;
+
+  for i range 1 to instructionCount do
+
+    if shapeList[i] = "SQR" then
+
+      write("   <instruction> => SQR ");
+      write(coordOneList[i]);
+      write("-");
+      writeln(coordTwoList[i]);
+
+    else
+
+      write("   <instruction> => TRI ");
+      write(coordOneList[i]);
+      write("-");
+      write(coordTwoList[i]);
+      write("-");
+      writeln(coordThreeList[i]);
+
+    end if;
+
+  end for;
+
+  writeln;
+  writeln("Final sentence:");
+
+  write("begin ");
+
+  for i range 1 to instructionCount do
+
+    write(instructionText(i));
+
+    if i < instructionCount then
+      write(". ");
+    end if;
+
+  end for;
+
+  writeln(" end");
+  writeln;
+
+end func;
+
 
 # ============================================================
 # DISPLAY PARSE TREE
 # ============================================================
 
 const proc: displayParseTree is func
-  local
-    var integer: i is 0;
-  begin
 
-    writeln;
-    writeln("==============================================");
-    writeln("                 PARSE TREE");
-    writeln("==============================================");
+local
+  var integer: i is 0;
 
-    writeln("                    <program>");
-    writeln("                   /    |    \\");
-    writeln("              begin  <instructions>  end");
+begin
 
-    if instructionCount = 1 then
+  writeln;
+  writeln("==================================================");
+  writeln("                   PARSE TREE");
+  writeln("==================================================");
 
-      writeln("                         |");
+  writeln("                    <program>");
+  writeln("                   /    |    \\");
+  writeln("                begin  <instructions>  end");
+  writeln("                         |");
+
+  for i range 1 to instructionCount do
+
+    if shapeList[i] = "SQR" then
+
       writeln("                    <instruction>");
+      writeln("                     /    |    \\");
+      writeln("                   SQR  <coord> <coord>");
 
-      if shapeList[1] = "SQR" then
-
-        writeln("                   /      |      \\");
-        writeln("                 SQR     <coord>  <coord>");
-        writeln("                          |         |");
-        writeln("                         " & coordOneList[1] &
-                "          " & coordTwoList[1]);
-
-      else
-
-        writeln("                 /       |       |       \\");
-        writeln("               TRI     <coord> <coord> <coord>");
-        writeln("                        |       |       |");
-        writeln("                       " & coordOneList[1] &
-                "       " & coordTwoList[1] &
-                "       " & coordThreeList[1]);
-
-      end if;
+      write("                        ");
+      write(coordOneList[i]);
+      write("     ");
+      writeln(coordTwoList[i]);
 
     else
 
-      writeln("                         |");
-      writeln("              <instruction> . <instructions>");
+      writeln("                    <instruction>");
+      writeln("                    /    |    |    \\");
+      writeln("                  TRI  <coord> <coord> <coord>");
 
-      for i range 1 to instructionCount do
-
-        writeln("                         |");
-        writeln("                    " & makeInstruction(i));
-
-      end for;
+      write("                       ");
+      write(coordOneList[i]);
+      write("     ");
+      write(coordTwoList[i]);
+      write("     ");
+      writeln(coordThreeList[i]);
 
     end if;
 
-    writeln;
+    if i < instructionCount then
+      writeln("                         .");
+    end if;
 
-  end func;
+  end for;
+
+  writeln;
+
+end func;
+
 
 # ============================================================
 # DISPLAY SUCCESS
 # ============================================================
 
 const proc: displaySuccess is func
-  begin
+begin
 
-    writeln;
-    writeln("==============================================");
-    writeln("              VALID PROGRAM");
-    writeln("==============================================");
-    writeln("The input was successfully recognized.");
-    writeln;
+  writeln;
+  writeln("==================================================");
+  writeln("                 VALID PROGRAM");
+  writeln("==================================================");
+  writeln("The input matches the grammar.");
+  writeln;
 
-  end func;
+end func;
 
 
 # ============================================================
@@ -929,26 +744,22 @@ const proc: displaySuccess is func
 # ============================================================
 
 const proc: displayError is func
-  begin
+begin
 
-    writeln;
-    writeln("==============================================");
-    writeln("              INVALID PROGRAM");
-    writeln("==============================================");
+  writeln;
+  writeln("==================================================");
+  writeln("                INVALID PROGRAM");
+  writeln("==================================================");
 
-    if errorMessage <> "" then
+  if errorMessage <> "" then
+    writeln(errorMessage);
+  else
+    writeln("Error: The input does not match the grammar.");
+  end if;
 
-      writeln(errorMessage);
+  writeln;
 
-    else
-
-      writeln("Error: The input does not match the grammar.");
-
-    end if;
-
-    writeln;
-
-  end func;
+end func;
 
 
 # ============================================================
@@ -956,57 +767,49 @@ const proc: displayError is func
 # ============================================================
 
 const proc: main is func
-  local
-    var string: inputString is "";
-    var boolean: recognized is FALSE;
-    var boolean: running is TRUE;
-  begin
 
-    while running do
+local
+  var string: inputString is "";
+  var boolean: recognized is FALSE;
 
-      displayGrammar;
+begin
 
-      writeln("Enter your program:");
+  while running do
 
-readln(inputString);
+    displayGrammar;
 
-      if inputString = "EXIT" then
+    write("Enter your program: ");
+    readln(inputString);
 
-        writeln;
-        writeln("Program terminated.");
+    if inputString = "EXIT" then
 
-        running := FALSE;
+      running := FALSE;
+
+    else
+
+      recognized := parseProgram(inputString);
+
+      if recognized = TRUE then
+
+        displaySuccess;
+        displayInstructions;
+        displayDerivation;
+        displayParseTree;
 
       else
 
-        recognized := parseProgram(inputString);
-
-        if recognized then
-
-          displaySuccess;
-
-          createRightmostDerivation;
-          displayDerivation;
-
-          displayParseTree;
-
-        else
-
-          displayError;
-
-        end if;
-
-        if running then
-
-          writeln;
-          writeln("Press ENTER to continue...");
-
-          readln(inputString);
-
-        end if;
+        displayError;
 
       end if;
 
-    end while;
+      writeln("Press ENTER to continue.");
+      readln(inputString);
 
-  end func;
+    end if;
+
+  end while;
+
+  writeln;
+  writeln("Program terminated.");
+
+end func;
